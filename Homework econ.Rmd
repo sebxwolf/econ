@@ -118,29 +118,35 @@ kraft_at_central <- createVariables(getdata( "KC_KR32.csv"))
 **TASK 1** *Construct a price variable by dividing $ sales by unit sales (employ the sales_$ and sales_u variables). Explain how to interpret this price variable (i.e. what sort of average price is this?).*
 
 **Answer:**
-I use the pre-defined function that were given with the assignment to construct prices. The quantity sold and the total sales are reported on a weekly basis, so the prices are **weekly average prices of mayonnaise/dressing per lb**.
+I use the pre-defined function that were given with the assignment to construct prices. The quantity sold and the total sales are reported on a weekly basis, so the prices are weekly average prices of mayonnaise/dressing per lb.
 
 ***
 
 **TASK 2 ** *Compute the mean prices across weeks of Hellman's in Jewel and the Central Region. Are they comparable? Repeat the exercise for Kraft in Jewel and the Central Region.*
 
 **Answer:**
-The **mean prices** for the different regions when computed across weeks over the time period of our data are **nearly the same**, both for Hellman and Kraft.
+The mean prices for the different regions when computed across weeks over the time period of our data are nearly the same, both for Hellman and Kraft.
 
- \vspace{0.5cm}
- 
-**Mean Prices for Hellman:**
-```{r Task 2a, echo=F, warning=F, results='asis'}
+```{r Task 2, echo=F, warning=F, results='asis'}
 #The mean prices across weeks for Hellman are:
 df_sum1 <- merged.df(hellman_at_central,hellman_at_jewel) %>%
   summarise(Midwest=mean(price_hellman_at_central,na.rm = TRUE),Chicago=mean(price_hellman_at_jewel,na.rm = TRUE))
 #The mean prices across weeks for Kraft are:
-df_sum2<- merged.df(kraft_at_central,kraft_at_jewel) %>%
+df_sum2 <- merged.df(kraft_at_central,kraft_at_jewel) %>%
   summarise(Midwest=mean(price_kraft_at_central,na.rm = TRUE),Chicago=mean(price_kraft_at_jewel,na.rm = TRUE))
-stargazer(df_sum1,df_sum2, header=F)
-```
-**Mean Prices for Kraft:**
-```{r Task 2b, echo=F, warning=F, fig.height = 2}
+#The standard deviation of prices across weeks for Hellman are:
+df_sum3 <- merged.df(hellman_at_central,hellman_at_jewel) %>%
+  summarise(Midwest=sd(price_hellman_at_central,na.rm = TRUE),Chicago=sd(price_hellman_at_jewel,na.rm = TRUE))
+#The standard deviation of prices across weeks for Kraft are:
+df_sum4 <- merged.df(kraft_at_central,kraft_at_jewel) %>%
+  summarise(Midwest=sd(price_kraft_at_central,na.rm = TRUE),Chicago=sd(price_kraft_at_jewel,na.rm = TRUE))
+#bind together and output
+df_sum_m = rbind(df_sum1, df_sum2)
+df_sum_sd =rbind(df_sum3, df_sum4)
+df_sum = cbind(Company=c("Hellman","Kraft"), df_sum_m , df_sum_sd)
+kable(df_sum,"latex", booktabs = T)  %>%
+kable_styling(position = "center") %>%
+add_header_above(c(" ", "Mean" = 2, "Standard Deviation" = 2))
 
 ```
 
@@ -177,20 +183,8 @@ stargazer(df_sum1,df_sum2, header=F)
 **TASK 3** *Price variation: Compute the standard deviation of prices across weeks of Hellman's in Jewel and the Central Region. Is there more price variation at Jewel or in the Central Region? Why? What does this tell you upfront about your ability to estimate price elasticities with either account level data or data in a large geographic market? Repeat the exercise for Kraft in Jewel and the Central Region.*
 
 **Answer:**
-The standard deviation for prices in Chicago is about **twice as large** as in the Midwest, for both brands. This could be explained by geographic heterogeneity. The larger the geographic area we analyse, the more different **factors determining the price can even each other out**, if these factors are **geographically heteorgeneous**. Our ability to estimate price elasticities is likely lowered by this effect, because we **can only estimate price elasticities if we observe price changes of a sufficient size.** The less variability in price, the less precise we can expect our estimates to be.
+The standard deviation for prices in Chicago is about twice as large as in the Midwest, for both brands. This could be explained by geographic heterogeneity. The larger the geographic area we analyse and the larger the sample, the more different factors determining the price can even each other out, if these factors are geographically or chronologically heteorgeneous. Our ability to estimate price elasticities is likely lowered by this effect, because we can only estimate price elasticities if we observe price changes of a sufficient size. The less variability in price, the less precise we can expect our estimates to be.
 
-**Standard deviations for Hellman prices:**
-```{r Task 3a, echo=F}
-#The standard deviation of prices across weeks for Hellman are:
-merged.df(hellman_at_central,hellman_at_jewel) %>%
-  summarise(Midwest=sd(price_hellman_at_central,na.rm = TRUE),Chicago=sd(price_hellman_at_jewel,na.rm = TRUE))
-```
-**Standard deviations for Kraft prices:**
-```{r Task 3b, echo=F}
-#The standard deviation of prices across weeks for Kraft are:
-merged.df(kraft_at_central,kraft_at_jewel) %>%
-  summarise(Midwest=sd(price_kraft_at_central,na.rm = TRUE),Chicago=sd(price_kraft_at_jewel,na.rm = TRUE))
-```
 ***
 
 **TASK 4** *Price plots: Construct time-series plots of sales and prices for Hellmans in the Central division and for Jewel (i.e. weeks on the X-axis, prices and unit-sales on the Y-axis). Repeat the exercise for Kraft. Describe the differences or similarities between Kraft and Hellman's pricing policies in each account.*
@@ -329,12 +323,12 @@ The weekly average sales for both brands are much higher in the Midwest than in 
 **TASK 2.** *Fit the "multiplicative" demand model discussed in class for Kraft and Hellman's for the Central Region (i.e. 2 separate regressions, one for Hellman's, and one for Kraft).*
 
 **Answer Task 1 & 2:**
-```{r Task D1, results='asis', echo=F}
+```{r Task D1,results='asis', echo=F}
 simple_hellman_jewel <- lm(ln_sales_u~ln_price,hellman_at_jewel)
 simple_kraft_jewel  <- lm(ln_sales_u~ln_price,kraft_at_jewel)
 simple_hellman_central <- lm(ln_sales_u~ln_price,hellman_at_central)
 simple_kraft_central <- lm(ln_sales_u~ln_price,kraft_at_central)
-stargazer(simple_hellman_jewel,simple_kraft_jewel,simple_hellman_central,simple_kraft_central,column.labels=c("Hellman in Chicago","Kraft in Chicago","Hellman in Midwest","Kraft in Midwest"),df=F,header=FALSE)
+stargazer(simple_hellman_jewel,simple_kraft_jewel,simple_hellman_central,simple_kraft_central,column.labels=c("Hellman in Chicago","Kraft in Chicago","Hellman in Midwest","Kraft in Midwest"),df=FALSE,header=FALSE,type='latex',model.numbers = FALSE, title= "" ,summary.logical = FALSE, float=FALSE, notes="", omit.stat = c("rsq", "f", "ser"))
 ```
 
 ***
@@ -357,19 +351,20 @@ The elasticity is higher in Chicago (Jewel account).
 **Answer:**
 ```{r Task D4}
 #Hellman unit change
-print(1.1^(lm(ln_sales_u~ln_price,hellman_at_jewel)[["coefficients"]][["ln_price"]])-1)
+1.1^(lm(ln_sales_u~ln_price,hellman_at_jewel)[["coefficients"]][["ln_price"]])-1
 #Kraft unit change
-print(1.1^(lm(ln_sales_u~ln_price,kraft_at_jewel)[["coefficients"]][["ln_price"]])-1)
+1.1^(lm(ln_sales_u~ln_price,kraft_at_jewel)[["coefficients"]][["ln_price"]])-1
 ```
 ***
 
 **TASK 5.** *Focus on the data for Kraft and Hellman’s 32 oz at Jewel. Fit the "multiplicative" demand model for Kraft and Hellman's at Jewel allowing for cross-price effects (i.e. 2 separate regressions, one for Hellman's, and one for Kraft, with Hellman's own price and Kraft's price affecting sales of Hellman's; and Kraft's own price and Hellman's price affecting sales of Kraft).*
 
 **Answer:**
-```{r Task D5}
+```{r Task D5, results='asis', echo=F}
 x<-merged.df(hellman_at_jewel,kraft_at_jewel)
-lm(ln_sales_u_hellman_at_jewel~ln_price_hellman_at_jewel+ln_price_kraft_at_jewel,x)
-lm(ln_sales_u_kraft_at_jewel~ln_price_kraft_at_jewel+ln_price_hellman_at_jewel,x)
+cross_hellman_jewel <- lm(ln_sales_u_hellman_at_jewel~ln_price_hellman_at_jewel+ln_price_kraft_at_jewel,x)
+cross_kraft_jewel <- lm(ln_sales_u_kraft_at_jewel~ln_price_kraft_at_jewel+ln_price_hellman_at_jewel,x)
+stargazer(cross_hellman_jewel, cross_kraft_jewel, column.labels=c("Hellman in Chicago","Kraft in Chicago"),df=FALSE,header=FALSE,type='latex',model.numbers = FALSE, title= "" ,summary.logical = FALSE, float=FALSE, notes="", omit.stat = c("rsq", "f", "ser"))
 ```
 ***
 
@@ -390,12 +385,15 @@ It is true our result could suffer from omitted variable bias in the regression.
 **TASK 8.** *Suppose you work at Kraft,and you realize that Hellman's price is cut by 10% at Jewel. Using your estimates from 5, compute by what percent you have to lower the Kraft 32 oz price at Jewel to obtain the same sales as you currently enjoy.*
 
 **Answer:**
-Kraft would have to lower their price by 3.64% in order to keep sales constant in Chicago given a 10% price decrease by Hellman, assuming our model is correctly specified.
+
 ```{r Task D8}
-print(1-1/((0.9^
+y <- (1-1/((0.9^
       (lm(ln_sales_u_kraft_at_jewel~ln_price_kraft_at_jewel+ln_price_hellman_at_jewel,x)
       [["coefficients"]][["ln_price_hellman_at_jewel"]])))
       ^(1/lm(ln_sales_u_kraft_at_jewel~ln_price_kraft_at_jewel+ln_price_hellman_at_jewel,x)
       [["coefficients"]][["ln_price_kraft_at_jewel"]]))
+print(y)
 ```
+Kraft would have to lower their price by `r round(y*100,2)`% in order to keep sales constant in Chicago given a 10% price decrease by Hellman, assuming our model is correctly specified.
+
 ***
