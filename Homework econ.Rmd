@@ -1,0 +1,401 @@
+---
+title: "Economic Methods - Assignment 1"
+output: pdf_document
+author: "Sebastian Wolf"
+date: "15.10.2018"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(gridExtra)
+library(kableExtra)
+library(stargazer)
+######################################################################
+#Functions
+
+getdata <- function(file){
+    #returns the file specified with processed dates.
+    
+    #file si the pathof the file to be read
+    mydata <- read.csv(file, header = T)
+    
+    # create new object
+    mydata$date1 <- mydata$Date 
+    
+    # This overwrites the variable date1 and enters the first 7 digits of the string-variable date.
+    mydata$date1 <- substr(mydata$date, start = 1, stop = 7)
+    
+    # now we can convert it to the Date class, but first setting the locale
+    lct <- Sys.getlocale("LC_TIME"); Sys.setlocale("LC_TIME", "C")
+
+    mydata$date2 <- as.Date(mydata$date1, "%b%d%y")
+    mydata$date <- ts(mydata$date2)
+    
+    mydata
+}
+
+createVariables <- function(mydata) {
+    #creates variables of interest for regression
+    
+    price <- mydata$Sales_USD/mydata$Sales_U #first 16 values are nonsensical
+    sales_u <-  mydata$Sales_U #first 16 values are nonsensical
+    ln_sales_u <- log(mydata$Sales_U) #first 16 values are nonsensical
+    ln_price <- log(price)#first 16 values are nonsensical
+    
+    df <- data.frame(price = price, sales_u = sales_u, ln_sales_u = ln_sales_u, ln_price = ln_price, date = mydata$date2)
+}
+
+runRegression <- function(vars.df) {
+    #runs regression on variables of interest
+    lm(vars.df$ln_sales_u ~ vars.df$ln_price)
+}
+
+merged.df <- function(data1, data2, data3 ,data4){
+    #removes ln_sales from data1 and merges with data2
+  if(missing(data3)){
+    colnames(data1) <- paste(colnames(data1),deparse(substitute(data1)),sep="_")
+    colnames(data2) <- paste(colnames(data2),deparse(substitute(data2)),sep="_")
+    colnames(data1)[5] <- c("date")
+    colnames(data2)[5] <- c("date")
+    merge(data1, data2, by = "date")
+}
+  else {
+    colnames(data1) <- paste(colnames(data1),deparse(substitute(data1)),sep="_")
+    colnames(data2) <- paste(colnames(data2),deparse(substitute(data2)),sep="_")
+    colnames(data1)[5] <- c("date")
+    colnames(data2)[5] <- c("date")
+    df1 <- merge(data1, data2, by = "date")
+    colnames(data3) <- paste(colnames(data3),deparse(substitute(data3)),sep="_")
+    colnames(data4) <- paste(colnames(data4),deparse(substitute(data4)),sep="_")
+    colnames(data3)[5] <- c("date")
+    colnames(data4)[5] <- c("date")
+    df2 <- merge(data3, data4, by = "date")
+    merge(df1,df2, by = "date")
+}
+}
+
+merged.ts <- function(data1, data2){
+    #merges as ts, and removes ln_sales from data1 and merges with data2
+    colnames(data1) <- paste(colnames(data1),deparse(substitute(data1)),sep="_")
+    colnames(data2) <- paste(colnames(data2),deparse(substitute(data2)),sep="_")
+    colnames(data1)[5] <- c("date")
+    colnames(data2)[5] <- c("date")
+    as.ts(merge(data1, data2, by = "date"))
+}
+
+##############################################################################
+# 1. Hellman at Jewel
+
+#get raw data and create new variables
+hellman_at_jewel <- createVariables(getdata("JWL_HL32.csv"))
+
+#time series plots
+plot(hellman_at_jewel$date, hellman_at_jewel$price, col = "blue", xy.labels = F, type = "l")
+plot(hellman_at_jewel$date, hellman_at_jewel$sales_u, col = "red", xy.labels = F, type = "l")
+
+#scatter plot
+plot(hellman_at_jewel$price, hellman_at_jewel$sales_u)
+
+#regression
+summary(runRegression(hellman_at_jewel))
+##############################################################################3
+
+
+
+
+#############################################################################
+#Analysis on merged data
+hellman_at_jewel <- createVariables(getdata("JWL_HL32.csv"))
+kraft_at_jewel <- createVariables(getdata("JWL_KR32.csv"))
+hellman_at_central <- createVariables(getdata("KC_HL32.csv"))
+kraft_at_central <- createVariables(getdata( "KC_KR32.csv"))
+
+```
+
+# Part 1 - Data Check
+
+**TASK 1** *Construct a price variable by dividing $ sales by unit sales (employ the sales_$ and sales_u variables). Explain how to interpret this price variable (i.e. what sort of average price is this?).*
+
+**Answer:**
+I use the pre-defined function that were given with the assignment to construct prices. The quantity sold and the total sales are reported on a weekly basis, so the prices are **weekly average prices of mayonnaise/dressing per lb**.
+
+***
+
+**TASK 2 ** *Compute the mean prices across weeks of Hellman's in Jewel and the Central Region. Are they comparable? Repeat the exercise for Kraft in Jewel and the Central Region.*
+
+**Answer:**
+The **mean prices** for the different regions when computed across weeks over the time period of our data are **nearly the same**, both for Hellman and Kraft.
+
+ \vspace{0.5cm}
+ 
+**Mean Prices for Hellman:**
+```{r Task 2a, echo=F, warning=F, results='asis'}
+#The mean prices across weeks for Hellman are:
+df_sum1 <- merged.df(hellman_at_central,hellman_at_jewel) %>%
+  summarise(Midwest=mean(price_hellman_at_central,na.rm = TRUE),Chicago=mean(price_hellman_at_jewel,na.rm = TRUE))
+#The mean prices across weeks for Kraft are:
+df_sum2<- merged.df(kraft_at_central,kraft_at_jewel) %>%
+  summarise(Midwest=mean(price_kraft_at_central,na.rm = TRUE),Chicago=mean(price_kraft_at_jewel,na.rm = TRUE))
+stargazer(df_sum1,df_sum2, header=F)
+```
+**Mean Prices for Kraft:**
+```{r Task 2b, echo=F, warning=F, fig.height = 2}
+
+```
+
+```{r Task 2 redundant code, echo=F, warning=F, fig.height = 2}
+#This plot combines all series in one data-frame
+      
+      # z <- merged.df(kraft_at_central,kraft_at_jewel,hellman_at_central,hellman_at_jewel) %>%
+      # select(date, Kraft_Midwest=price_kraft_at_central, Kraft_Chicago=price_kraft_at_jewel, Hellman_Midwest=price_hellman_at_central,Hellman_Chicago=price_hellman_at_jewel) %>%
+      # gather(key="Region",value="price",-date)
+      # 
+      # ggplot(z,aes(x=date, y=price)) +
+      # geom_line(aes(color=Region)) +
+      # scale_color_manual(values = c("yellowgreen","black","purple","red")) +
+      # theme_minimal() +
+      # ggtitle("Mayonnaise weekly average prices 1991/92 - Midwest vs Chicago") +
+      # labs(x = "", y ="Price in US$") +
+      # scale_x_date(date_labels = "%b %Y")
+      
+#Plotting the time series using the simple plot function
+
+      # merged.ts(hellman_at_central,hellman_at_jewel)[,c(2,6)] %>%
+      # plot.ts(, plot.type="single", ylab="Prince in US$", type = "l", col=c(2,3), main="Hellman mayonnaise weekly average prices 1991/92 - Midwest vs Chicago markets")
+      #       legend("topleft", c("Midwest","Chicago"),fill=c(2,3))
+      # 
+      # merged.ts(kraft_at_central,kraft_at_jewel)[,c(2,6)] %>%
+      # plot.ts(, plot.type="single", ylab="Prince in US$", type = "l", col=c(2,3), main="Kraft mayonnaise weekly average prices 1991/92 - Midwest vs Chicago markets")
+      #       legend("topleft", c("Midwest","Chicago"),fill=c(2,3))
+      
+
+```
+
+***
+
+**TASK 3** *Price variation: Compute the standard deviation of prices across weeks of Hellman's in Jewel and the Central Region. Is there more price variation at Jewel or in the Central Region? Why? What does this tell you upfront about your ability to estimate price elasticities with either account level data or data in a large geographic market? Repeat the exercise for Kraft in Jewel and the Central Region.*
+
+**Answer:**
+The standard deviation for prices in Chicago is about **twice as large** as in the Midwest, for both brands. This could be explained by geographic heterogeneity. The larger the geographic area we analyse, the more different **factors determining the price can even each other out**, if these factors are **geographically heteorgeneous**. Our ability to estimate price elasticities is likely lowered by this effect, because we **can only estimate price elasticities if we observe price changes of a sufficient size.** The less variability in price, the less precise we can expect our estimates to be.
+
+**Standard deviations for Hellman prices:**
+```{r Task 3a, echo=F}
+#The standard deviation of prices across weeks for Hellman are:
+merged.df(hellman_at_central,hellman_at_jewel) %>%
+  summarise(Midwest=sd(price_hellman_at_central,na.rm = TRUE),Chicago=sd(price_hellman_at_jewel,na.rm = TRUE))
+```
+**Standard deviations for Kraft prices:**
+```{r Task 3b, echo=F}
+#The standard deviation of prices across weeks for Kraft are:
+merged.df(kraft_at_central,kraft_at_jewel) %>%
+  summarise(Midwest=sd(price_kraft_at_central,na.rm = TRUE),Chicago=sd(price_kraft_at_jewel,na.rm = TRUE))
+```
+***
+
+**TASK 4** *Price plots: Construct time-series plots of sales and prices for Hellmans in the Central division and for Jewel (i.e. weeks on the X-axis, prices and unit-sales on the Y-axis). Repeat the exercise for Kraft. Describe the differences or similarities between Kraft and Hellman's pricing policies in each account.*
+
+**Answer:** 
+The weekly average sales for both brands are much higher in the Midwest than in the Chicago region. In terms of prices, the policy seems to be to vary prices much more in Chicago than in the Midwest, as we have already noticed when studying the standard variation. Both brands further seem to track each other's prices fairly closely. 
+
+``` {r Task 4a, echo=F, warning=F, fig.height = 2}
+#This plot combines the series belonging to one brand in one data-frame, and plots using ggplot for Hellman
+      x <- merged.df(hellman_at_central,hellman_at_jewel) %>%
+      select(date, Midwest=price_hellman_at_central, Chicago=price_hellman_at_jewel) %>%
+      gather(key="Region",value="price",-date)
+
+      ggplot(x,aes(x=date, y=price)) +
+      geom_line(aes(color=Region)) +
+      scale_color_manual(values = c("turquoise", "purple2")) +
+      theme_minimal() +
+      ggtitle("Hellman mayonnaise weekly average prices in 1991/92 by region") +
+      theme(plot.title = element_text(size = 10)) +
+      labs(x = "", y ="Price in US$") +
+      scale_x_date(date_labels = "%b %Y")
+```
+
+``` {r Task 4b, echo=F, warning=F, fig.height = 2}
+#This plot combines the series belonging to one brand in one data-frame, and plots using ggplot for Kraft     
+      y <- merged.df(kraft_at_central,kraft_at_jewel) %>%
+      select(date, Midwest=price_kraft_at_central, Chicago=price_kraft_at_jewel) %>%
+      gather(key="Region",value="price",-date)
+
+      ggplot(y,aes(x=date, y=price)) +
+      geom_line(aes(color=Region)) +
+      scale_color_manual(values = c("yellowgreen","black")) +
+      theme_minimal() +
+      ggtitle("Kraft mayonnaise weekly average prices in 1991/92 by region") +
+      theme(plot.title = element_text(size = 10)) +
+      labs(x = "", y ="Price in US$") +
+      scale_x_date(date_labels = "%b %Y")
+```
+
+``` {r Task 4c, echo=F, warning=F, fig.height = 2}
+#This plot combines the series belonging to one brand in one data-frame, and plots using ggplot for Hellman
+      x <- merged.df(hellman_at_central,hellman_at_jewel) %>%
+      select(date, Midwest=sales_u_hellman_at_central, Chicago=sales_u_hellman_at_jewel) %>%
+      gather(key="Region",value="sales",-date)
+
+      ggplot(x,aes(x=date, y=sales)) +
+      geom_line(aes(color=Region)) +
+      scale_color_manual(values = c("turquoise", "purple2")) +
+      theme_minimal() +
+      ggtitle("Hellman mayonnaise weekly average # of units sold in 1991/92 by region") +
+      theme(plot.title = element_text(size = 10)) +
+      labs(x = "", y ="Units sold") +
+      scale_x_date(date_labels = "%b %Y")
+```
+
+``` {r Task 4d, echo=F, warning=F, fig.height = 2}
+#This plot combines the series belonging to one brand in one data-frame, and plots using ggplot for Kraft     
+      y <- merged.df(kraft_at_central,kraft_at_jewel) %>%
+      select(date, Midwest=sales_u_kraft_at_central, Chicago=sales_u_kraft_at_jewel) %>%
+      gather(key="Region",value="sales",-date)
+
+      ggplot(y,aes(x=date, y=sales)) +
+      geom_line(aes(color=Region)) +
+      scale_color_manual(values = c("yellowgreen","black")) +
+      theme_minimal() +
+      ggtitle("Kraft mayonnaise weekly average # of units sold in 1991/92 by region") +
+      theme(plot.title = element_text(size = 10)) +
+      labs(x = "", y ="Units sold") +
+      scale_x_date(date_labels = "%b %Y")
+```
+
+***
+
+**TASK 5** *Scatter-plots: Construct scatter-plots of sales versus prices for Hellmans in the Central division and for Jewel (i.e. prices on the Y-axis, unit-sales on the X-axis). Repeat the exercise for Kraft. Is there evidence for a negatively sloped demand-curve in the data? Eye-balling these plots, does demand appear more elastic in the Central Region or at Jewel (for either Hellman's or Kraft)?*
+
+**Answer:** For both brands the scatterplots indicate a clear negative correlation in Chicago. This pattern is still visible but less clear for the Midwest.
+
+ \vspace{0.5cm}
+ 
+``` {r Task 5a, echo=F, warning=F, fig.height=2}
+#This plot combines scatters price vs units for Hellman for Central
+
+      Hellman_central_scatter <- ggplot(hellman_at_central,aes(x=sales_u, y=price)) +
+      geom_point() +
+      scale_color_manual(values = c("yellowgreen","black")) +
+      theme_minimal() +
+      ggtitle("Hellman - Midwest") +
+      theme(plot.title = element_text(size = 12,hjust = 0.5)) +
+      labs(y = "Price", x ="Units sold")
+
+#This plot combines scatters price vs units for Hellman for Jewel
+
+      Hellman_jewel_scatter <-ggplot(hellman_at_jewel,aes(x=sales_u, y=price)) +
+      geom_point() +
+      scale_color_manual(values = c("yellowgreen","black")) +
+      theme_minimal() +
+      ggtitle("Hellman - Chicago") +
+      theme(plot.title = element_text(size = 12,hjust = 0.5)) +
+      labs(y = "Price", x ="Units sold")
+      
+      grid.arrange(Hellman_central_scatter,Hellman_jewel_scatter, ncol=2)
+```
+ 
+ \vspace{0.5cm}
+ 
+``` {r Task 5b, echo=F, warning=F, fig.height=2}
+#This plot combines scatters price vs units for Kraft for Central
+
+      Kraft_central_scatter <- ggplot(kraft_at_central,aes(x=sales_u, y=price)) +
+      geom_point() +
+      scale_color_manual(values = c("yellowgreen","black")) +
+      theme_minimal() +
+      ggtitle("Kraft -Midwest") +
+      theme(plot.title = element_text(size = 12,hjust = 0.5)) +
+      labs(y = "Price", x ="Units sold")
+
+#This plot combines scatters price vs units for Kraft for Jewel
+
+      Kraft_jewel_scatter <-ggplot(kraft_at_jewel,aes(x=sales_u, y=price)) +
+      geom_point() +
+      scale_color_manual(values = c("yellowgreen","black")) +
+      theme_minimal() +
+      ggtitle("Kraft - Chicago") +
+      theme(plot.title = element_text(size = 12,hjust = 0.5)) +
+      labs(y = "Price", x ="Units sold")
+      
+      grid.arrange(Kraft_central_scatter,Kraft_jewel_scatter,ncol=2)
+```
+
+***
+
+#Part 2 - Demand estimation
+
+**TASK 1.** *Fit the "multiplicative" demand model discussed in class for Kraft and Hellman's at Jewel (i.e. 2 separate regressions, one for Hellman's, and one for Kraft).*
+
+**TASK 2.** *Fit the "multiplicative" demand model discussed in class for Kraft and Hellman's for the Central Region (i.e. 2 separate regressions, one for Hellman's, and one for Kraft).*
+
+**Answer Task 1 & 2:**
+```{r Task D1, results='asis', echo=F}
+simple_hellman_jewel <- lm(ln_sales_u~ln_price,hellman_at_jewel)
+simple_kraft_jewel  <- lm(ln_sales_u~ln_price,kraft_at_jewel)
+simple_hellman_central <- lm(ln_sales_u~ln_price,hellman_at_central)
+simple_kraft_central <- lm(ln_sales_u~ln_price,kraft_at_central)
+stargazer(simple_hellman_jewel,simple_kraft_jewel,simple_hellman_central,simple_kraft_central,column.labels=c("Hellman in Chicago","Kraft in Chicago","Hellman in Midwest","Kraft in Midwest"),df=F,header=FALSE)
+```
+
+***
+
+**TASK 3.** *Elasticity differences: Is the demand elasticity higher (in absolute magnitude) at the Jewel account or in the Central Region? Can you offer some compelling explanations for the difference? (think of as many potential reasons as possible)*
+
+**Answer:**
+The elasticity is higher in Chicago (Jewel account).
+
+* Urban areas have a denser outlet population, so there are more substitutes both in terms of outlets and in terms of products, making demand more elastic.
+
+* Consumers in urban areas are usually more aware of prices because of the larger amount of retail stores they that are within their reach as well as cheaper transaction costs for information technology.
+
+* Consumers in urban areas usually are exposed to more food diversity and thus might find it easier to substitute to other products.
+
+***
+
+**TASK 4.** *Forecasting demand under a price change: Using your regression results from the multiplicative demand model, compute the % change in unit sales for a 10% increase in the price of Kraft and Hellman's at Jewel. (Note: You can do this brute force in Excel, but for your benefit you should try to compute this on a sheet of paper with the help of a calculator).*
+
+**Answer:**
+```{r Task D4}
+#Hellman unit change
+print(1.1^(lm(ln_sales_u~ln_price,hellman_at_jewel)[["coefficients"]][["ln_price"]])-1)
+#Kraft unit change
+print(1.1^(lm(ln_sales_u~ln_price,kraft_at_jewel)[["coefficients"]][["ln_price"]])-1)
+```
+***
+
+**TASK 5.** *Focus on the data for Kraft and Hellman’s 32 oz at Jewel. Fit the "multiplicative" demand model for Kraft and Hellman's at Jewel allowing for cross-price effects (i.e. 2 separate regressions, one for Hellman's, and one for Kraft, with Hellman's own price and Kraft's price affecting sales of Hellman's; and Kraft's own price and Hellman's price affecting sales of Kraft).*
+
+**Answer:**
+```{r Task D5}
+x<-merged.df(hellman_at_jewel,kraft_at_jewel)
+lm(ln_sales_u_hellman_at_jewel~ln_price_hellman_at_jewel+ln_price_kraft_at_jewel,x)
+lm(ln_sales_u_kraft_at_jewel~ln_price_kraft_at_jewel+ln_price_hellman_at_jewel,x)
+```
+***
+
+**TASK 6.** *You may be called upon to report to your manager whether your brand is vulnerable to a competitor's pricing policies. That is, to what extent does the demand for your product depend on (or is affected by) your competitors' pricing policy? From the results in 5, which brand is more "vulnerable"? Be specific as to why.*
+
+**Answer:**
+Kraft is more 'vulnerable' to Hellman's pricing policy, because the cross-price elasticity is larger, meaning that if Hellman changes it's price, then the sales for Kraft will respond by more than vice versa.
+
+***
+
+**TASK 7.** *While making a crucial presentation of the above results in front of your team, your analyst colleague questions your results as follows: "This is all fine. But, you know, you're missing a lot of variables in your so-called regression model. For instance, the sales of Kraft mayo at Jewel are clearly affected by store traffic. When it snows, less people visit Jewel, and you don't have such factors -- the weather, temperature, traffic congestions, etc. So aren't your cross-price effects all wrong?" Is your colleague right or wrong?*
+
+**Answer:**
+It is true our result could suffer from omitted variable bias in the regression. However, it could also be that these variables are uncorrelated with the pricing strategy of our competitors, in which case the estimation of the cross-price elasticity would still be unbiased. To know more, we would have to run some robustness checks.
+
+***
+
+**TASK 8.** *Suppose you work at Kraft,and you realize that Hellman's price is cut by 10% at Jewel. Using your estimates from 5, compute by what percent you have to lower the Kraft 32 oz price at Jewel to obtain the same sales as you currently enjoy.*
+
+**Answer:**
+Kraft would have to lower their price by 3.64% in order to keep sales constant in Chicago given a 10% price decrease by Hellman, assuming our model is correctly specified.
+```{r Task D8}
+print(1-1/((0.9^
+      (lm(ln_sales_u_kraft_at_jewel~ln_price_kraft_at_jewel+ln_price_hellman_at_jewel,x)
+      [["coefficients"]][["ln_price_hellman_at_jewel"]])))
+      ^(1/lm(ln_sales_u_kraft_at_jewel~ln_price_kraft_at_jewel+ln_price_hellman_at_jewel,x)
+      [["coefficients"]][["ln_price_kraft_at_jewel"]]))
+```
+***
